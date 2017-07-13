@@ -1,0 +1,70 @@
+apply plugin: 'idea'
+apply plugin: 'groovy'
+apply plugin: 'war'
+
+repositories {
+    mavenCentral()
+}
+
+sourceCompatibility = 1.8
+
+group 'gov.doe.jgi.pi.pps'
+version appVersion
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    //compile 'gov.doe.jgi.pi.pps:clarity-node-manager:1.10.4'
+
+    // https://mvnrepository.com/artifact/org.camunda.bpm/camunda-bom
+    //compile group: 'org.camunda.bpm', name: 'camunda-bom', version: camundaVersion, ext: 'pom'
+    // https://mvnrepository.com/artifact/org.camunda.bpm/camunda-engine
+    providedCompile "org.camunda.bpm:camunda-engine:${camundaVersion}"
+    providedCompile "xerces:xercesImpl:2.9.1"
+    //https://mvnrepository.com/artifact/org.camunda.bpm/camunda-engine-spring
+    compile "org.camunda.bpm:camunda-engine-spring:${camundaVersion}"
+    compile "org.springframework:spring-web:${springVersion}"
+    compile 'org.codehaus.groovy.modules.http-builder:http-builder:0.7.1'
+
+    compile group: 'ch.qos.logback', name: 'logback-classic', version: logbackVersion
+    compile group: 'ch.qos.logback', name: 'logback-core', version: logbackVersion
+
+    // https://mvnrepository.com/artifact/com.googlecode.json-simple/json-simple
+    compile group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1.1'
+    compile group: 'org.grails', name: 'grails-web-common', version: '3.2.11'
+
+    compile 'org.codehaus.groovy:groovy-all:2.4.5'
+    testCompile "org.spockframework:spock-core:1.1-groovy-2.4"
+}
+
+task deployCamundaLocal(type: Copy) {
+    String camundaDeployDir = System.getenv('CAMUNDA_DEPLOY')
+    from war.archivePath
+    into camundaDeployDir
+}
+deployCamundaLocal.dependsOn clean,war
+
+tasks.withType(Test) { testTask ->
+    beforeTest { TestDescriptor descriptor->
+        logger.warn "running ${testTask.name}: ${descriptor.className} \"${descriptor.name}\""
+    }
+    afterTest { TestDescriptor descriptor, TestResult result ->
+        long duration = result.endTime - result.startTime
+        String logMessage = "${result.resultType} (${duration} msecs): ${testTask.name} ${descriptor.className} \"${descriptor.name}\""
+        switch (result.resultType) {
+            case TestResult.ResultType.SUCCESS:
+                logger.warn "${logMessage}"
+                break;
+            case TestResult.ResultType.FAILURE:
+                logger.error "${logMessage}"
+                break;
+            case TestResult.ResultType.SKIPPED:
+                logger.warn "${logMessage}"
+                break;
+            default:
+                logger.warn "${logMessage}"
+        }
+    }
+}
